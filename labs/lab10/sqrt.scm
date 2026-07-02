@@ -1,0 +1,31 @@
+(define (square x)
+  (* x x)
+)
+
+(define (abs x)
+  (if (< x 0)
+    (- x)
+    (+ x)
+    )
+)
+
+(define (average x y)
+  (/ (+ x y) 2)
+)
+
+
+(define (sqrt x)
+  (define (accurate? guess)
+    (< (abs (- (square guess) x)) 0.001)
+  )
+  (define (better_guess guess)
+    (average guess (/ x guess))
+  )
+  (define (find_sqrt guess)
+    (if (accurate? guess)
+        guess 
+        (find_sqrt (better_guess guess))
+    )
+  )
+  (find_sqrt 1)
+)

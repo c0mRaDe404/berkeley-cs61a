@@ -1,0 +1,7 @@
+queen:
+  is_waterproof = True 
+
+  Insect.reduce_armor 
+  Insect.action  (not implemented, implementation defined)
+
+  ThrowerAnt.action (override Insect class function)
