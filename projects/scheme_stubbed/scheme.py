@@ -22,15 +22,25 @@ def scheme_eval(expr, env, _=None): # Optional third argument is ignored
     >>> scheme_eval(expr, create_global_frame())
     4
     """
-    # PROBLEM 2
-    return 'Your Code Here'
+    if isinstance(expr, Pair):
+        first = scheme_eval(expr.first, env)
+        if isinstance(first, Procedure):
+            return scheme_apply(first, expr.rest, env)
+    else:
+        if isinstance(expr, str):
+            return env.lookup(expr)
+
+    return expr
 
 
 def scheme_apply(procedure, args, env):
     """Apply Scheme PROCEDURE to argument values ARGS (a Scheme list) in
     environment ENV."""
     # PROBLEM 2
-    return 'Your Code Here'
+
+    if scheme_builtin(procedure):
+        return procedure.apply(args, env)
+    return 'Yet to be implemented'
 
 
 
@@ -45,22 +55,24 @@ class Frame(object):
         """An empty frame with parent frame PARENT (which may be None)."""
         "Your Code Here"
         # Note: you should define instance variables self.parent and self.bindings
-
+        self.parent = parent 
+        self.bindings = {}
     def __repr__(self):
         if self.parent is None:
             return '<Global Frame>'
         s = sorted(['{0}: {1}'.format(k, v) for k, v in self.bindings.items()])
         return '<{{{0}}} -> {1}>'.format(', '.join(s), repr(self.parent))
 
-    def define(self, symbol, value):
+    def define(self, key, value):
         """Define Scheme SYMBOL to have VALUE."""
+        self.bindings[key] = value 
 
-        return 'Your Code Here'
-
-    # BEGIN PROBLEM 2/3
-    "*** YOUR CODE HERE ***"
-    # END PROBLEM 2/3
-
+    def lookup(self, key):
+        try:
+            return self.bindings[key]
+        except KeyError:
+            raise KeyError(f"Name {key} is undefined") 
+    
 ##############
 # Procedures #
 ##############
@@ -93,8 +105,16 @@ class BuiltinProcedure(Procedure):
         """
         # BEGIN PROBLEM 2
         "*** YOUR CODE HERE ***"
+        operands = []
+        cur = args 
+        while cur is not nil:
+            operands.append(scheme_eval(cur.first, env)) #Pair('+', Pair(2, Pair(2, nil)))
+            cur = scheme_eval(cur.rest, env)
+        return self.fn(*operands)
         # END PROBLEM 2
 
+def scheme_builtin(x):
+    return isinstance(x, BuiltinProcedure)
 
 class LambdaProcedure(Procedure):
     """A procedure defined by a lambda expression or a define form."""

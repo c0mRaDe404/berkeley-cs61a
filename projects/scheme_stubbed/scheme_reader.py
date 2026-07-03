@@ -125,7 +125,9 @@ def scheme_read(src): #src - instance of Buffer
         return src.pop_first()
     if src.current() in {'true', 'false', '#t', '#f'}: 
         return {'true':True, '#t':True, 'false':False, '#f':False}[src.pop_first()]
-    
+    if src.current() == '\'':
+        src.pop_first()
+        return Pair('quote', scheme_read(src))
     if src.current() == '(':
         src.pop_first()
         return read_tail(src)
