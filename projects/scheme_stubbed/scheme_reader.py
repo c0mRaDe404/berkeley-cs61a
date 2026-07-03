@@ -102,7 +102,7 @@ quotes = {"'":  'quote',
           '`':  'quasiquote',
           ',':  'unquote'}
 
-def scheme_read(src):
+def scheme_read(src): #src - instance of Buffer
     """Read the next expression from SRC, a Buffer of tokens.
 
     >>> scheme_read(Buffer(tokenize_lines(['nil'])))
@@ -118,7 +118,23 @@ def scheme_read(src):
         raise EOFError
     # BEGIN PROBLEM 1/2
     "*** YOUR CODE HERE ***"
-    # END PROBLEM 1/2
+    if src.current() == 'nil':
+        src.pop_first()
+        return nil 
+    if isinstance(src.current(), int) or isinstance(src.current(), float):
+        return src.pop_first()
+    if src.current() in {'true', 'false', '#t', '#f'}: 
+        return {'true':True, '#t':True, 'false':False, '#f':False}[src.pop_first()]
+    
+    if src.current() == '(':
+        src.pop_first()
+        return read_tail(src)
+    if src.current() == ')':
+        raise SyntaxError('Unmatched parantheses')
+    else:
+        return src.pop_first()
+
+        # END PROBLEM 1/2
 
 def read_tail(src):
     """Return the remainder of a list in SRC, starting before an element or ).
@@ -134,6 +150,13 @@ def read_tail(src):
         # BEGIN PROBLEM 1
         "*** YOUR CODE HERE ***"
         # END PROBLEM 1
+        if src.current() == ')':
+            src.pop_first()
+            return nil
+        else:
+            return Pair(scheme_read(src), read_tail(src)) 
+
+
     except EOFError:
         raise SyntaxError('unexpected end of file')
 
