@@ -13,8 +13,11 @@ from ucb import main, trace
 # Eval/Apply #
 ##############
 
+
+
 def scheme_eval(expr, env, _=None): # Optional third argument is ignored
     """Evaluate Scheme expression EXPR in environment ENV.
+    
 
     >>> expr = read_line('(+ 2 2)')
     >>> expr
@@ -24,22 +27,30 @@ def scheme_eval(expr, env, _=None): # Optional third argument is ignored
     """
     if isinstance(expr, Pair):
         first = scheme_eval(expr.first, env)
-        if isinstance(first, Procedure):
-            return scheme_apply(first, expr.rest, env)
+        return scheme_apply(first, expr.rest, env)
     else:
         if isinstance(expr, str):
+            if expr in special_forms.keys():
+                return SpecialForm(expr)
             return env.lookup(expr)
-
-    return expr
+    return expr 
 
 
 def scheme_apply(procedure, args, env):
     """Apply Scheme PROCEDURE to argument values ARGS (a Scheme list) in
     environment ENV."""
     # PROBLEM 2
-
     if scheme_builtin(procedure):
         return procedure.apply(args, env)
+    if scheme_special_form(procedure):
+        return procedure.apply(args, env) 
+    if scheme_user_defined(procedure):
+        new_env = env.copy()
+        new_env.parent = env
+        return procedure.apply(args, new_env)
+    else:
+        raise SchemeError(str(type(procedure).__name__) + f' is not callable: {procedure}')
+
     return 'Yet to be implemented'
 
 
@@ -71,7 +82,7 @@ class Frame(object):
         try:
             return self.bindings[key]
         except KeyError:
-            raise KeyError(f"Name {key} is undefined") 
+            raise SchemeError(f"unknown identifier: {key}") 
     
 ##############
 # Procedures #
@@ -103,14 +114,19 @@ class BuiltinProcedure(Procedure):
         >>> plus.apply(twos, env)
         4
         """
-        # BEGIN PROBLEM 2
-        "*** YOUR CODE HERE ***"
         operands = []
-        cur = args 
+        cur = args
         while cur is not nil:
-            operands.append(scheme_eval(cur.first, env)) #Pair('+', Pair(2, Pair(2, nil)))
-            cur = scheme_eval(cur.rest, env)
-        return self.fn(*operands)
+            operands.append(scheme_eval(cur.first, env)) 
+            cur = cur.rest 
+        if self.use_env:
+            operands.append(env)
+        
+        try: 
+            return self.fn(*operands)
+        except TypeError:
+            raise SchemeError("invalid arguments count")
+
         # END PROBLEM 2
 
 def scheme_builtin(x):
@@ -137,6 +153,8 @@ class LambdaProcedure(Procedure):
         return 'LambdaProcedure({0}, {1}, {2})'.format(
             repr(self.formals), repr(self.body), repr(self.env))
 
+def scheme_user_defined(x):
+    return isinstance(x, LambdaProcedure)
 
 def add_builtins(frame, funcs_and_names):
     """Enter bindings in FUNCS_AND_NAMES into FRAME, an environment frame,
@@ -148,11 +166,56 @@ def add_builtins(frame, funcs_and_names):
 #################
 # Special Forms #
 #################
-
 """
 How you implement special forms is up to you. We recommend you encapsulate the
 logic for each special form separately somehow, which you can do here.
 """
+
+
+class SpecialForm:
+    def __init__(self, name):
+        self.name = name
+    
+    def apply(self, body, env):
+        if body is nil:
+            raise SyntaxError("too few operands in form")
+        return special_forms[self.name](body, env)
+        
+
+def scheme_special_form(x):
+    return isinstance(x, SpecialForm)
+
+def symbol(x):
+    return isinstance(x, str)
+
+def do_define_form(body, env):
+    target = body.first
+    if symbol(target):
+        if body.rest is nil: 
+            raise SyntaxError("too few operands in form")
+        elif len(body.rest) >= 2:
+            raise SyntaxError("too many operands in form")
+        else:
+            env.define(target, scheme_eval(body.rest.first, env))
+            return target
+    elif isinstance(target, Pair):
+        pass
+    
+    raise SchemeError(f"non-symbol: {target}")
+
+
+def do_quote_form(body, env):
+    if len(body) > 1:
+        raise SyntaxError("too many operands in form")
+    return body.first 
+
+
+special_forms = {"define": do_define_form,
+                 "quote" : do_quote_form
+                }
+
+
+
 
 # BEGIN PROBLEM 2/3
 "*** YOUR CODE HERE ***"

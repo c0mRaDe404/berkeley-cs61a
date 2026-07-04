@@ -102,7 +102,8 @@ quotes = {"'":  'quote',
           '`':  'quasiquote',
           ',':  'unquote'}
 
-def scheme_read(src): #src - instance of Buffer
+def scheme_read(src): #src - instance of Buffer 
+
     """Read the next expression from SRC, a Buffer of tokens.
 
     >>> scheme_read(Buffer(tokenize_lines(['nil'])))
@@ -125,9 +126,9 @@ def scheme_read(src): #src - instance of Buffer
         return src.pop_first()
     if src.current() in {'true', 'false', '#t', '#f'}: 
         return {'true':True, '#t':True, 'false':False, '#f':False}[src.pop_first()]
-    if src.current() == '\'':
-        src.pop_first()
-        return Pair('quote', scheme_read(src))
+    if src.current() in quotes:
+        quote_name = quotes[src.pop_first()]
+        return Pair(quote_name, Pair(scheme_read(src), nil))
     if src.current() == '(':
         src.pop_first()
         return read_tail(src)
@@ -135,7 +136,6 @@ def scheme_read(src): #src - instance of Buffer
         raise SyntaxError('Unmatched parantheses')
     else:
         return src.pop_first()
-
         # END PROBLEM 1/2
 
 def read_tail(src):
