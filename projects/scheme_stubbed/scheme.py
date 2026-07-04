@@ -45,8 +45,8 @@ def scheme_apply(procedure, args, env):
     if scheme_special_form(procedure):
         return procedure.apply(args, env) 
     if scheme_user_defined(procedure):
-        new_env = env.copy()
-        new_env.parent = env
+         
+        new_env = Frame(env)
         return procedure.apply(args, new_env)
     else:
         raise SchemeError(str(type(procedure).__name__) + f' is not callable: {procedure}')
@@ -82,6 +82,9 @@ class Frame(object):
         try:
             return self.bindings[key]
         except KeyError:
+            parent = self.parent
+            if parent is not None:
+                return parent.lookup(key)
             raise SchemeError(f"unknown identifier: {key}") 
     
 ##############
@@ -143,8 +146,24 @@ class LambdaProcedure(Procedure):
         self.body = body
         self.env = env
 
+
     # BEGIN PROBLEM 3
-    "*** YOUR CODE HERE ***"
+    def apply(self, body, env):
+        formals, args = self.formals, body
+        test = str(formals.first)
+        
+        while formals is not nil and args is not nil:
+            env.define(formals.first, scheme_eval(args.first, env))
+            formals, args = formals.rest, args.rest
+        if formals is not nil or args is not nil:
+            raise SchemeError("Incorrect number of arguments to function call")
+
+        
+        new_env = Frame(self.env)
+        for item in env.bindings:
+            new_env.define(item, env.bindings[item])
+
+        return do_begin_form(self.body, new_env) # a's environment is passed    
     # END PROBLEM 3
     def __str__(self):
         return str(Pair('lambda', Pair(self.formals, self.body)))
@@ -177,8 +196,7 @@ class SpecialForm:
         self.name = name
     
     def apply(self, body, env):
-        if body is nil:
-            raise SyntaxError("too few operands in form")
+        
         return special_forms[self.name](body, env)
         
 
@@ -189,6 +207,10 @@ def symbol(x):
     return isinstance(x, str)
 
 def do_define_form(body, env):
+    
+    if body is nil:
+            raise SchemeError("too few operands in form")
+    
     target = body.first
     if symbol(target):
         if body.rest is nil: 
@@ -196,22 +218,49 @@ def do_define_form(body, env):
         elif len(body.rest) >= 2:
             raise SyntaxError("too many operands in form")
         else:
-            env.define(target, scheme_eval(body.rest.first, env))
+            env.define(target, scheme_eval(body.rest.first, env)) 
             return target
-    elif isinstance(target, Pair):
-        pass
-    
+    elif isinstance(target, Pair):    
+        function_id = target.first 
+        function_formals = target.rest 
+        function_body = body.rest
+        env.define(function_id, LambdaProcedure(function_formals, function_body, env))
+        return function_id 
+
     raise SchemeError(f"non-symbol: {target}")
 
 
 def do_quote_form(body, env):
-    if len(body) > 1:
-        raise SyntaxError("too many operands in form")
+    if body is nil:
+            raise SchemeError("too few operands in form")    
     return body.first 
+
+def do_begin_form(body, env):
+    cur = body
+    final_result = None 
+    while cur is not nil:
+        final_result = scheme_eval(cur.first, env)
+        cur = cur.rest
+    
+    return final_result #returns b
+
+
+def do_lambda_form(body, env):
+    if body is nil:
+            raise SchemeError("too few operands in form")   
+    formals = body.first 
+    expr = body.rest 
+    
+    if expr is nil:
+        raise SchemeError("too few operands in form")
+    
+    return LambdaProcedure(formals, expr, env)
 
 
 special_forms = {"define": do_define_form,
-                 "quote" : do_quote_form
+                 "quote" : do_quote_form,
+                 "begin" : do_begin_form,
+                 "lambda": do_lambda_form
                 }
 
 
