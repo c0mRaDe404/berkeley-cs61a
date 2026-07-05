@@ -122,10 +122,10 @@ def scheme_read(src): #src - instance of Buffer
     if src.current() == 'nil':
         src.pop_first()
         return nil 
-    if isinstance(src.current(), int) or isinstance(src.current(), float):
-        return src.pop_first()
-    if src.current() in {'true', 'false', '#t', '#f'}: 
-        return {'true':True, '#t':True, 'false':False, '#f':False}[src.pop_first()]
+    #if isinstance(src.current(), int) or isinstance(src.current(), float):
+    #    return src.pop_first()
+    #if src.current() in {'true', 'false', '#t', '#f'}: 
+    #    return {'true':True, '#t':True, 'false':False, '#f':False}[src.pop_first()]
     if src.current() in quotes:
         quote_name = quotes[src.pop_first()]
         return Pair(quote_name, Pair(scheme_read(src), nil))

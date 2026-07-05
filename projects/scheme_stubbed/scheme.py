@@ -7,7 +7,7 @@ import os
 from scheme_builtins import *
 from scheme_reader import *
 from ucb import main, trace
-
+from scheme_builtins import scheme_list 
 
 ##############
 # Eval/Apply #
@@ -25,6 +25,7 @@ def scheme_eval(expr, env, _=None): # Optional third argument is ignored
     >>> scheme_eval(expr, create_global_frame())
     4
     """
+    
     if isinstance(expr, Pair):
         first = scheme_eval(expr.first, env)
         return scheme_apply(first, expr.rest, env)
@@ -45,9 +46,13 @@ def scheme_apply(procedure, args, env):
     if scheme_special_form(procedure):
         return procedure.apply(args, env) 
     if scheme_user_defined(procedure):
-         
-        new_env = Frame(env)
-        return procedure.apply(args, new_env)
+        new_args = []
+        temp = args
+        while temp is not nil: #evaluate arguments before executing the body
+            new_args.append(scheme_eval(temp.first, env))
+            temp = temp.rest
+        args = scheme_list(*new_args)
+        return procedure.apply(args, env)
     else:
         raise SchemeError(str(type(procedure).__name__) + f' is not callable: {procedure}')
 
@@ -147,24 +152,19 @@ class LambdaProcedure(Procedure):
         self.env = env
 
 
-    # BEGIN PROBLEM 3
     def apply(self, body, env):
-        formals, args = self.formals, body
-        test = str(formals.first)
         
+        new_env = Frame(self.env)
+        formals, args = self.formals, body 
+
         while formals is not nil and args is not nil:
-            env.define(formals.first, scheme_eval(args.first, env))
+            new_env.define(formals.first, args.first)
             formals, args = formals.rest, args.rest
         if formals is not nil or args is not nil:
             raise SchemeError("Incorrect number of arguments to function call")
 
-        
-        new_env = Frame(self.env)
-        for item in env.bindings:
-            new_env.define(item, env.bindings[item])
-
-        return do_begin_form(self.body, new_env) # a's environment is passed    
-    # END PROBLEM 3
+        return do_begin_form(self.body, new_env)     
+    
     def __str__(self):
         return str(Pair('lambda', Pair(self.formals, self.body)))
 
@@ -232,7 +232,9 @@ def do_define_form(body, env):
 
 def do_quote_form(body, env):
     if body is nil:
-            raise SchemeError("too few operands in form")    
+            raise SchemeError("too few operands in form")   
+    if body.rest is not nil:
+            raise SchemeError("too many operands in form")
     return body.first 
 
 def do_begin_form(body, env):
@@ -257,18 +259,138 @@ def do_lambda_form(body, env):
     return LambdaProcedure(formals, expr, env)
 
 
+
+def is_scheme_true(value):
+    return value is not False  
+
+def is_scheme_false(value):
+    return value is False 
+
+
+def do_and_form(body, env):
+    expr = body 
+    result = True
+    while expr is not nil:
+        result = scheme_eval(expr.first, env)
+        if is_scheme_false(result):
+            return result
+        expr = expr.rest 
+    return result
+
+def do_or_form(body, env):
+    expr = body 
+    result = False
+    while expr is not nil:
+        result = scheme_eval(expr.first, env)
+        if is_scheme_true(result):
+            return result 
+        expr = expr.rest 
+    return result
+
+def do_if_form(body, env):
+    if body is nil:
+        raise SchemeError("too few operands in form")
+
+    predicate = body.first
+
+    if body.rest is nil:
+        raise SchemeError("too few operands in form")
+    
+    consequent = body.rest.first
+    alternative = None
+
+    if body.rest.rest is not nil:
+        alternative = body.rest.rest.first 
+    if body.rest.rest.rest is not nil:
+        raise SchemeError("too many operands in form")
+    if is_scheme_true(scheme_eval(predicate, env)):
+        return scheme_eval(consequent, env)
+    else:
+        if alternative is None:
+            return None 
+        return scheme_eval(alternative, env)
+
+def is_clause(expr):
+    return isinstance(expr, Pair)
+
+def do_cond_form(body, env): 
+    cond_body = body 
+    while cond_body is not nil:
+        clause = cond_body.first
+        if not is_clause(clause):
+            raise SchemeError(f"badly formed expression {clause}") 
+
+        if clause.first == "else":
+            if cond_body.rest is not nil:
+                raise SchemeError("else must be last")
+            return do_begin_form(clause.rest, env)
+        
+        expr = scheme_eval(clause.first, env)
+        if is_scheme_true(expr):
+            if clause.rest is nil:
+                return expr
+            return do_begin_form(clause.rest, env)
+        cond_body = cond_body.rest
+
+
+def is_valid_binding(binding):
+    return isinstance(binding, Pair)
+
+def do_let_form(body, env):
+    
+    if body is nil:
+        raise SchemeError("too few operands in form")
+
+    head = body.first
+    if not is_valid_binding(head):
+        raise SchemeError("too few operands in form")
+
+    tail = body.rest
+    
+    formals, args = [], [] 
+    
+    while head is not nil:
+        binding = head.first
+        if not is_valid_binding(binding):
+            raise SchemeError("too few operands in form") 
+        else:
+            if not symbol(binding.first):
+                raise SchemeError("invalid formal")
+            if binding.rest is nil:
+                raise SchemeError("too few operands in form")
+            if len(binding) > 2:
+                raise SchemeError("too many operands in form")
+       
+
+        formals.append(binding.first) 
+        args.append(binding.rest.first) 
+        head = head.rest 
+     
+    formals = scheme_list(*formals)
+    args    = scheme_list(*args)
+    #import pudb 
+    #pudb.set_trace()
+    proc = LambdaProcedure(formals, tail, env) 
+    return scheme_apply(proc, args, env)
+
+def do_mu_form(body, env):
+    pass 
+
 special_forms = {"define": do_define_form,
                  "quote" : do_quote_form,
                  "begin" : do_begin_form,
-                 "lambda": do_lambda_form
+                 "lambda": do_lambda_form,
+                 "and"   : do_and_form,
+                 "or"    : do_or_form,
+                 "if"    : do_if_form,
+                 "cond"  : do_cond_form,
+                 "let"   : do_let_form,
+                 "mu"    : do_mu_form
                 }
 
 
 
 
-# BEGIN PROBLEM 2/3
-"*** YOUR CODE HERE ***"
-# END PROBLEM 2/3
 
 # Utility methods for checking the structure of Scheme programs
 
