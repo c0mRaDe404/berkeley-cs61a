@@ -173,7 +173,8 @@ class LambdaProcedure(Procedure):
             repr(self.formals), repr(self.body), repr(self.env))
 
 def scheme_user_defined(x):
-    return isinstance(x, LambdaProcedure)
+    return isinstance(x, LambdaProcedure) or isinstance(x, MuProcedure)
+
 
 def add_builtins(frame, funcs_and_names):
     """Enter bindings in FUNCS_AND_NAMES into FRAME, an environment frame,
@@ -196,7 +197,6 @@ class SpecialForm:
         self.name = name
     
     def apply(self, body, env):
-        
         return special_forms[self.name](body, env)
         
 
@@ -244,7 +244,7 @@ def do_begin_form(body, env):
         final_result = scheme_eval(cur.first, env)
         cur = cur.rest
     
-    return final_result #returns b
+    return final_result 
 
 
 def do_lambda_form(body, env):
@@ -258,6 +258,16 @@ def do_lambda_form(body, env):
     
     return LambdaProcedure(formals, expr, env)
 
+def do_mu_form(body, env):
+    if body is nil:
+            raise SchemeError("too few operands in form")   
+    formals = body.first 
+    expr = body.rest 
+    
+    if expr is nil:
+        raise SchemeError("too few operands in form")
+    
+    return MuProcedure(formals, expr)
 
 
 def is_scheme_true(value):
@@ -373,8 +383,6 @@ def do_let_form(body, env):
     proc = LambdaProcedure(formals, tail, env) 
     return scheme_apply(proc, args, env)
 
-def do_mu_form(body, env):
-    pass 
 
 special_forms = {"define": do_define_form,
                  "quote" : do_quote_form,
@@ -467,6 +475,20 @@ class MuProcedure(Procedure):
     def __repr__(self):
         return 'MuProcedure({0}, {1})'.format(
             repr(self.formals), repr(self.body))
+
+    def apply(self, body, env):
+        
+        new_env = Frame(env)
+        formals, args = self.formals, body 
+
+        while formals is not nil and args is not nil:
+            new_env.define(formals.first, args.first)
+            formals, args = formals.rest, args.rest
+        if formals is not nil or args is not nil:
+            raise SchemeError("Incorrect number of arguments to function call")
+
+        return do_begin_form(self.body, new_env)     
+    
 
 
 ##################

@@ -11,11 +11,27 @@
 
 ;; Problem 5
 ;; Returns a list of two-element lists
+
+
+
 (define (enumerate s)
-  ; BEGIN PROBLEM 5
-  'replace-this-line
-  )
-  ; END PROBLEM 5
+  (define (helper counter lst)
+    (cond
+      ((null? lst)
+       ())
+      (else
+       (cons
+        (cons counter
+              (cons (car lst) nil))
+        (helper (+ counter 1)
+                (cdr lst))))))
+
+  (helper 0 s))
+
+
+
+; BEGIN PROBLEM 5
+; END PROBLEM 5
 
 ;; Problem 6
 
@@ -23,8 +39,12 @@
 ;; the merged lists.
 (define (merge comp list1 list2)
   ; BEGIN PROBLEM 6
-  'replace-this-line
-  )
+  (cond ((null? list1) list2)
+        ((null? list2) list1)
+        ((comp (car list1) (car list2)) (cons (car list1) (merge comp (cdr list1) list2))) 
+        ((comp (car list2) (car list1)) (cons (car list2) (merge comp list1 (cdr list2)))) 
+  ) 
+)
   ; END PROBLEM 6
 
 
@@ -35,10 +55,35 @@
 
 ;; Problem 7
 
-(define (nondecreaselist s)
+(define (compare_two op lst)
+    (op (car lst) (car (cdr lst)))
+)
+
+(define (slice lst index)
+    (cond ((zero? index) lst)
+          (else (slice (cdr lst) (- index 1)))))
+
+(define non 
+        (lambda (lst)
+          (cond 
+            ((null? lst) lst)
+            ((< (length lst) 2) lst)
+            ((compare_two <= lst)  (cons (car lst) (non (cdr lst))) )
+            (else (cons (car lst) nil))
+            )
+))
+
+
+(define (non_list s)
     ; BEGIN PROBLEM 17
-    'replace-this-line
-    )
+   (cond ((null? s) s)
+         ((< (length s) 2) cons(s nil))
+          
+         (else (define lst (non s)) 
+               (cons lst (non_list (slice s (length lst))))
+         )
+         )    
+)
     ; END PROBLEM 17
 
 ;; Problem EC
